@@ -39,6 +39,12 @@ create table if not exists profiles (
   updated_at timestamptz not null default now()
 );
 
+-- End-to-end encryption: all profile PII is encrypted client-side (AES-GCM) and
+-- stored in `enc_data`; `enc_salt` is the per-user PBKDF2 salt. The plaintext
+-- columns above are legacy — migrated into `enc_data` on first unlock, then nulled.
+alter table profiles add column if not exists enc_data text;
+alter table profiles add column if not exists enc_salt text;
+
 -- Approval activity log (owner-only, 7-day TTL): what the user shared, when,
 -- and to which form/site. PWA-only table.
 create table if not exists approval_logs (

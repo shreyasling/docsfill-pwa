@@ -3,9 +3,12 @@ import type {
   ApprovalLogRow,
   DocumentRow,
   ProfileRow,
+  ProfileEncRow,
+  ProfileData,
   SessionRow,
   FilledPayload,
 } from './types';
+import { getVaultKey, encryptJSON, decryptJSON } from './crypto';
 import type { DrivePickResult } from './drivePicker';
 
 // ---- Documents (file tags) ----
@@ -52,32 +55,117 @@ export async function deleteDocument(userId: string, tag: string): Promise<void>
   if (error) throw error;
 }
 
-// ---- Profile (value tags) ----
+// ---- Profile (value tags, encrypted at rest) ----
 
-export async function getProfile(userId: string): Promise<ProfileRow | null> {
+/** Thrown when the vault key isn't loaded yet (user hasn't unlocked). */
+export class VaultLockedError extends Error {
+  constructor() {
+    super('Your vault is locked. Unlock it to view or edit profile details.');
+    this.name = 'VaultLockedError';
+  }
+}
+
+/** All decrypted profile fields default to null. */
+export function emptyProfileData(): ProfileData {
+  return {
+    full_name: null,
+    father_name: null,
+    mother_name: null,
+    spouse_name: null,
+    date_of_birth: null,
+    gender: null,
+    nationality: null,
+    marital_status: null,
+    religion: null,
+    category: null,
+    pan: null,
+    aadhaar: null,
+    passport_number: null,
+    voter_id: null,
+    driving_license_number: null,
+    email: null,
+    phone: null,
+    alt_phone: null,
+    blood_group: null,
+    address_current: null,
+    address_permanent: null,
+  };
+}
+
+/** Raw row (ciphertext + salt + any legacy plaintext). Used by the vault gate
+ *  to decide setup vs unlock BEFORE a key exists. */
+export async function getProfileEncRow(userId: string): Promise<ProfileEncRow | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
-  return (data as ProfileRow) ?? null;
+  return (data as ProfileEncRow) ?? null;
 }
 
+export async function getProfile(userId: string): Promise<ProfileRow | null> {
+  const row = await getProfileEncRow(userId);
+  if (!row) return null;
+  if (row.enc_data) {
+    const key = getVaultKey();
+    if (!key) throw new VaultLockedError();
+    const data = await decryptJSON<ProfileData>(key, row.enc_data);
+    return { user_id: userId, updated_at: row.updated_at, ...emptyProfileData(), ...data };
+  }
+  // Legacy plaintext row (pre-encryption) — surface so the gate can migrate it.
+  return {
+    user_id: userId,
+    updated_at: row.updated_at,
+    ...emptyProfileData(),
+    full_name: row.full_name ?? null,
+    father_name: row.father_name ?? null,
+    date_of_birth: row.date_of_birth ?? null,
+    address_current: row.address_current ?? null,
+    address_permanent: row.address_permanent ?? null,
+  };
+}
+
+/** Encrypts and writes the FULL profile blob, clearing any legacy plaintext.
+ *  `saltB64` is only passed during vault setup/migration. */
+export async function saveEncryptedProfile(
+  userId: string,
+  data: ProfileData,
+  saltB64?: string,
+): Promise<void> {
+  const key = getVaultKey();
+  if (!key) throw new VaultLockedError();
+  const enc_data = await encryptJSON(key, data);
+  const patch: Record<string, unknown> = {
+    user_id: userId,
+    enc_data,
+    updated_at: new Date().toISOString(),
+    // Wipe any pre-encryption plaintext still on the row.
+    full_name: null,
+    father_name: null,
+    date_of_birth: null,
+    address_current: null,
+    address_permanent: null,
+  };
+  if (saltB64) patch.enc_salt = saltB64;
+  const { error } = await supabase.from('profiles').upsert(patch, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+/** Merges a partial patch into the current (decrypted) profile and re-encrypts. */
 export async function upsertProfile(
   userId: string,
-  patch: Partial<Omit<ProfileRow, 'user_id' | 'updated_at'>>,
+  patch: Partial<ProfileData>,
 ): Promise<ProfileRow> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(
-      { user_id: userId, ...patch, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' },
-    )
-    .select()
-    .single();
-  if (error) throw error;
-  return data as ProfileRow;
+  const current = (await getProfile(userId)) ?? {
+    user_id: userId,
+    updated_at: '',
+    ...emptyProfileData(),
+  };
+  const { user_id: _u, updated_at: _t, ...currentData } = current;
+  const merged: ProfileData = { ...currentData, ...patch };
+  await saveEncryptedProfile(userId, merged);
+  return { user_id: userId, updated_at: new Date().toISOString(), ...merged };
 }
 
 // ---- Sessions (the /fill flow) ----

@@ -48,7 +48,23 @@ export default function Profile() {
 
   const [fullName, setFullName] = useState('');
   const [fatherName, setFatherName] = useState('');
+  const [motherName, setMotherName] = useState('');
+  const [spouseName, setSpouseName] = useState('');
   const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
+  const [nationality, setNationality] = useState('');
+  const [maritalStatus, setMaritalStatus] = useState('');
+  const [religion, setReligion] = useState('');
+  const [category, setCategory] = useState('');
+  const [pan, setPan] = useState('');
+  const [aadhaar, setAadhaar] = useState('');
+  const [passportNumber, setPassportNumber] = useState('');
+  const [voterId, setVoterId] = useState('');
+  const [dlNumber, setDlNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [altPhone, setAltPhone] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
   const [addrCurrent, setAddrCurrent] = useState<AddressValue>(EMPTY_ADDR);
   const [addrPermanent, setAddrPermanent] = useState<AddressValue>(EMPTY_ADDR);
   const [sameAsCurrent, setSameAsCurrent] = useState(false);
@@ -60,7 +76,23 @@ export default function Profile() {
         if (p) {
           setFullName(p.full_name ?? '');
           setFatherName(p.father_name ?? '');
+          setMotherName(p.mother_name ?? '');
+          setSpouseName(p.spouse_name ?? '');
           setDob(p.date_of_birth ?? '');
+          setGender(p.gender ?? '');
+          setNationality(p.nationality ?? '');
+          setMaritalStatus(p.marital_status ?? '');
+          setReligion(p.religion ?? '');
+          setCategory(p.category ?? '');
+          setPan(p.pan ?? '');
+          setAadhaar(p.aadhaar ?? '');
+          setPassportNumber(p.passport_number ?? '');
+          setVoterId(p.voter_id ?? '');
+          setDlNumber(p.driving_license_number ?? '');
+          setEmail(p.email ?? '');
+          setPhone(p.phone ?? '');
+          setAltPhone(p.alt_phone ?? '');
+          setBloodGroup(p.blood_group ?? '');
           setAddrCurrent(p.address_current ?? EMPTY_ADDR);
           setAddrPermanent(p.address_permanent ?? EMPTY_ADDR);
         }
@@ -82,7 +114,23 @@ export default function Profile() {
       await upsertProfile(user.id, {
         full_name: fullName.trim() || null,
         father_name: fatherName.trim() || null,
+        mother_name: motherName.trim() || null,
+        spouse_name: spouseName.trim() || null,
         date_of_birth: dob || null,
+        gender: gender.trim() || null,
+        nationality: nationality.trim() || null,
+        marital_status: maritalStatus.trim() || null,
+        religion: religion.trim() || null,
+        category: category.trim() || null,
+        pan: pan.trim().toUpperCase() || null,
+        aadhaar: aadhaar.trim() || null,
+        passport_number: passportNumber.trim().toUpperCase() || null,
+        voter_id: voterId.trim().toUpperCase() || null,
+        driving_license_number: dlNumber.trim().toUpperCase() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        alt_phone: altPhone.trim() || null,
+        blood_group: bloodGroup.trim() || null,
         address_current: addrCurrent,
         address_permanent: permanent,
       });
@@ -107,7 +155,7 @@ export default function Profile() {
     <form onSubmit={handleSave} className="space-y-4">
       <PageHeader
         title="Profile"
-        subtitle="Text details reused across forms. Age is computed automatically — never stored."
+        subtitle="Encrypted on your device before saving. Age is computed automatically — never stored."
       />
 
       {error && <Banner tone="error">{error}</Banner>}
@@ -123,11 +171,109 @@ export default function Profile() {
           <input className="input" value={fatherName} onChange={(e) => setFatherName(e.target.value)} placeholder="John Doe" />
         </div>
         <div>
+          <label className="label">Mother's name</label>
+          <input className="input" value={motherName} onChange={(e) => setMotherName(e.target.value)} placeholder="Mary Doe" />
+        </div>
+        <div>
+          <label className="label">Spouse's name</label>
+          <input className="input" value={spouseName} onChange={(e) => setSpouseName(e.target.value)} placeholder="Optional" />
+        </div>
+        <div>
           <label className="label">Date of birth</label>
           <input className="input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
           {age !== null && (
             <p className="mt-1 text-xs text-slate-400">Computed age: {age} years</p>
           )}
+        </div>
+      </div>
+
+      <div className="card space-y-3">
+        <label className="label mb-0">Personal details</label>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">Gender</label>
+            <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Category</label>
+            <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Select</option>
+              <option>GEN</option>
+              <option>OBC</option>
+              <option>SC</option>
+              <option>ST</option>
+              <option>EWS</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Marital status</label>
+            <select className="input" value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)}>
+              <option value="">Select</option>
+              <option>Single</option>
+              <option>Married</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Blood group</label>
+            <input className="input" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} placeholder="O+" />
+          </div>
+          <div>
+            <label className="label">Religion</label>
+            <input className="input" value={religion} onChange={(e) => setReligion(e.target.value)} placeholder="e.g. Hindu" />
+          </div>
+          <div>
+            <label className="label">Nationality</label>
+            <input className="input" value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Indian" />
+          </div>
+        </div>
+      </div>
+
+      <div className="card space-y-3">
+        <label className="label mb-0">Government IDs</label>
+        <div>
+          <label className="label">PAN number</label>
+          <input className="input uppercase" value={pan} onChange={(e) => setPan(e.target.value)} placeholder="ABCDE1234F" />
+        </div>
+        <div>
+          <label className="label">Aadhaar number</label>
+          <input className="input" inputMode="numeric" value={aadhaar} onChange={(e) => setAadhaar(e.target.value)} placeholder="12 digits" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">Passport number</label>
+            <input className="input uppercase" value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} placeholder="A1234567" />
+          </div>
+          <div>
+            <label className="label">Voter ID (EPIC)</label>
+            <input className="input uppercase" value={voterId} onChange={(e) => setVoterId(e.target.value)} placeholder="ABC1234567" />
+          </div>
+        </div>
+        <div>
+          <label className="label">Driving licence number</label>
+          <input className="input uppercase" value={dlNumber} onChange={(e) => setDlNumber(e.target.value)} placeholder="KA01 20191234567" />
+        </div>
+      </div>
+
+      <div className="card space-y-3">
+        <label className="label mb-0">Contact</label>
+        <div>
+          <label className="label">Email address</label>
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">Phone number</label>
+            <input className="input" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" />
+          </div>
+          <div>
+            <label className="label">Alternate phone</label>
+            <input className="input" inputMode="numeric" value={altPhone} onChange={(e) => setAltPhone(e.target.value)} placeholder="Optional" />
+          </div>
         </div>
       </div>
 

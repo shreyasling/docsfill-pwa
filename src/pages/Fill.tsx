@@ -105,6 +105,16 @@ export default function Fill() {
       }
 
       if (def.kind === 'derived') {
+        if (tag === 'derived.full_address') {
+          const value = formatAddress(profile?.address_current) || undefined;
+          return {
+            tag,
+            kind: 'derived',
+            satisfied: Boolean(value),
+            value,
+            addAt: value ? undefined : '/profile',
+          };
+        }
         // derived.age — computed here, never stored.
         const age = computeAge(profile?.date_of_birth ?? '');
         return {
@@ -116,26 +126,25 @@ export default function Fill() {
         };
       }
 
+      // value tag backed by a sub-field of the stored current address
+      if (def.addressField) {
+        const value = profile?.address_current?.[def.addressField] || undefined;
+        return {
+          tag,
+          kind: 'value',
+          satisfied: Boolean(value),
+          value,
+          addAt: value ? undefined : '/profile',
+        };
+      }
+
       // value tag
       if (def.profileField) {
-        let value: string | undefined;
-        switch (def.profileField) {
-          case 'full_name':
-            value = profile?.full_name ?? undefined;
-            break;
-          case 'father_name':
-            value = profile?.father_name ?? undefined;
-            break;
-          case 'date_of_birth':
-            value = profile?.date_of_birth ?? undefined;
-            break;
-          case 'address_current':
-            value = formatAddress(profile?.address_current) || undefined;
-            break;
-          case 'address_permanent':
-            value = formatAddress(profile?.address_permanent) || undefined;
-            break;
-        }
+        const field = def.profileField;
+        const value =
+          field === 'address_current' || field === 'address_permanent'
+            ? formatAddress(profile?.[field]) || undefined
+            : (profile?.[field] as string | null | undefined) ?? undefined;
         return {
           tag,
           kind: 'value',
@@ -152,9 +161,11 @@ export default function Fill() {
     });
   }, [requiredTags, docs, profile, inlineValues]);
 
+  // Unknown tags are skipped (see payload loop), so they must not block Approve.
+  const knownResolved = resolved.filter((r) => r.kind !== 'unknown');
   const allSatisfied =
-    resolved.length > 0 &&
-    resolved.every((r) => r.kind !== 'unknown' && 'satisfied' in r && r.satisfied);
+    knownResolved.length > 0 &&
+    knownResolved.every((r) => 'satisfied' in r && r.satisfied);
 
   // Warm a Drive token SILENTLY the moment we know files will be sent, so the
   // Approve tap reuses the cached token and never pops the account chooser.

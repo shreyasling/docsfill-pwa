@@ -49,11 +49,46 @@ export interface ProfileRow {
   user_id: string;
   full_name: string | null;
   father_name: string | null;
+  mother_name: string | null;
+  spouse_name: string | null;
   date_of_birth: string | null;
+  gender: string | null;
+  nationality: string | null;
+  marital_status: string | null;
+  religion: string | null;
+  category: string | null;
+  pan: string | null;
+  aadhaar: string | null;
+  passport_number: string | null;
+  voter_id: string | null;
+  driving_license_number: string | null;
+  email: string | null;
+  phone: string | null;
+  alt_phone: string | null;
+  blood_group: string | null;
   address_current: AddressValue | null;
   address_permanent: AddressValue | null;
   updated_at: string;
 }
+
+/** The encrypted-at-rest row actually stored in Supabase. Everything sensitive
+ *  lives inside `enc_data` (AES-GCM, base64). Legacy plaintext columns may still
+ *  exist on older rows and are migrated into the blob on first unlock. */
+export interface ProfileEncRow {
+  user_id: string;
+  enc_data: string | null;
+  enc_salt: string | null;
+  updated_at: string;
+  // Legacy plaintext columns (pre-encryption) — read once for migration.
+  full_name?: string | null;
+  father_name?: string | null;
+  date_of_birth?: string | null;
+  address_current?: AddressValue | null;
+  address_permanent?: AddressValue | null;
+}
+
+/** The plaintext, decrypted profile fields (everything except user_id/updated_at). */
+export type ProfileData = Omit<ProfileRow, 'user_id' | 'updated_at'>;
 
 // filled_payload is keyed by tag (see brief §5).
 export type FilledValue = { value: string | number };

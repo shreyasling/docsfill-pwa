@@ -6,17 +6,20 @@ export const GROUP_STYLE: Record<
   GroupKey,
   { strip: string; tileBg: string; tileText: string }
 > = {
-  govt_id: { strip: 'bg-blue-600', tileBg: 'bg-blue-50', tileText: 'text-blue-600' },
+  identity: { strip: 'bg-blue-600', tileBg: 'bg-blue-50', tileText: 'text-blue-600' },
   education: { strip: 'bg-teal-600', tileBg: 'bg-teal-50', tileText: 'text-teal-600' },
-  photo: { strip: 'bg-purple-600', tileBg: 'bg-purple-50', tileText: 'text-purple-600' },
+  employment: { strip: 'bg-indigo-600', tileBg: 'bg-indigo-50', tileText: 'text-indigo-600' },
+  financial: { strip: 'bg-emerald-600', tileBg: 'bg-emerald-50', tileText: 'text-emerald-600' },
+  certificate: { strip: 'bg-rose-600', tileBg: 'bg-rose-50', tileText: 'text-rose-600' },
+  medical: { strip: 'bg-red-600', tileBg: 'bg-red-50', tileText: 'text-red-600' },
   address: { strip: 'bg-amber-500', tileBg: 'bg-amber-50', tileText: 'text-amber-600' },
-  personal: { strip: 'bg-slate-600', tileBg: 'bg-slate-100', tileText: 'text-slate-600' },
+  photo: { strip: 'bg-purple-600', tileBg: 'bg-purple-50', tileText: 'text-purple-600' },
 };
 
 export function CategoryIcon({ group, ...p }: { group: GroupKey } & SVGProps<SVGSVGElement>) {
   const common = { viewBox: '0 0 24 24', fill: 'none', width: 26, height: 26, ...p };
   switch (group) {
-    case 'govt_id':
+    case 'identity':
       return (
         <svg {...common}>
           <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />

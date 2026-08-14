@@ -183,7 +183,7 @@ function VaultRow({
   };
 
   const uploaded = Boolean(doc);
-  const style = GROUP_STYLE[def.group ?? 'personal'];
+  const style = GROUP_STYLE[def.group ?? 'identity'];
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
@@ -192,7 +192,7 @@ function VaultRow({
         <span
           className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${style.tileBg} ${style.tileText}`}
         >
-          <CategoryIcon group={def.group ?? 'personal'} />
+          <CategoryIcon group={def.group ?? 'identity'} />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-bold text-slate-900">{def.label}</p>
