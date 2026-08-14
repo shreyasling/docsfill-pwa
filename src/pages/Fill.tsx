@@ -163,9 +163,11 @@ export default function Fill() {
 
   // Unknown tags are skipped (see payload loop), so they must not block Approve.
   const knownResolved = resolved.filter((r) => r.kind !== 'unknown');
-  const allSatisfied =
-    knownResolved.length > 0 &&
-    knownResolved.every((r) => 'satisfied' in r && r.satisfied);
+  const satisfiedCount = knownResolved.filter((r) => 'satisfied' in r && r.satisfied).length;
+  const allSatisfied = knownResolved.length > 0 && satisfiedCount === knownResolved.length;
+  // Everything is optional: approve as long as at least one field can be shared.
+  // Empty/missing fields are simply skipped, not required.
+  const canApprove = satisfiedCount > 0;
 
   // Warm a Drive token SILENTLY the moment we know files will be sent, so the
   // Approve tap reuses the cached token and never pops the account chooser.
@@ -322,18 +324,24 @@ export default function Fill() {
           <div className="safe-bottom sticky bottom-0 mt-6 bg-slate-100 pt-3">
             <button
               className="btn-primary w-full"
-              disabled={!allSatisfied || submitting}
+              disabled={!canApprove || submitting}
               onClick={handleApprove}
             >
-              {submitting ? <Spinner className="h-5 w-5" /> : 'Approve & Send'}
+              {submitting ? (
+                <Spinner className="h-5 w-5" />
+              ) : (
+                `Approve & Send${satisfiedCount ? ` (${satisfiedCount})` : ''}`
+              )}
             </button>
             <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs text-slate-400">
               <svg viewBox="0 0 24 24" fill="none" width="12" height="12">
                 <path d="M6 10V8a6 6 0 0 1 12 0v2M5 10h14v10H5V10Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
               </svg>
-              {allSatisfied
-                ? 'You approve before anything is shared.'
-                : 'Add the missing items above before approving.'}
+              {!canApprove
+                ? 'Add at least one item above to share.'
+                : allSatisfied
+                  ? 'You approve before anything is shared.'
+                  : 'Only the filled items are shared — the rest are skipped.'}
             </p>
           </div>
         </>

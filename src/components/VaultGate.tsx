@@ -12,11 +12,12 @@ import {
   restoreVaultKey,
   newSaltB64,
   decryptJSON,
+  isCryptoAvailable,
 } from '../lib/crypto';
 import type { ProfileData } from '../lib/types';
 import { Banner, Spinner } from './ui';
 
-type GateState = 'loading' | 'needs-setup' | 'locked' | 'unlocked';
+type GateState = 'loading' | 'needs-setup' | 'locked' | 'unlocked' | 'insecure';
 
 /**
  * Guards the app behind the encryption vault. Profile PII is stored encrypted;
@@ -37,6 +38,12 @@ export default function VaultGate({ children }: { children: ReactNode }) {
     if (!user) return;
     setState('loading');
     setError(null);
+    // Encryption needs a secure context (HTTPS / localhost). Bail early with a
+    // clear message rather than failing mid-setup on a plain LAN IP.
+    if (!isCryptoAvailable()) {
+      setState('insecure');
+      return;
+    }
     try {
       const key = await restoreVaultKey(user.id);
       if (key) {
@@ -123,6 +130,30 @@ export default function VaultGate({ children }: { children: ReactNode }) {
     return (
       <div className="flex h-full min-h-[60vh] items-center justify-center text-brand-600">
         <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (state === 'insecure') {
+    return (
+      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-4 py-10">
+        <div className="mb-4">
+          <Banner tone="error">Secure connection required</Banner>
+        </div>
+        <div className="card space-y-3 text-sm text-slate-600">
+          <p className="font-semibold text-slate-800">
+            Your vault can’t be opened on this address.
+          </p>
+          <p>
+            DocFill encrypts your details in the browser, which needs a secure
+            connection. Open the app over <b>HTTPS</b> or on <b>localhost</b> — not
+            over a plain IP address like <code>http://192.168.x.x</code>.
+          </p>
+          <p>
+            On your phone, use the deployed link:{' '}
+            <b>https://docsfill-pwa.vercel.app</b>.
+          </p>
+        </div>
       </div>
     );
   }

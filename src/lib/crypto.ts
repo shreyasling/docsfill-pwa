@@ -13,6 +13,17 @@ const SALT_BYTES = 16;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+/** WebCrypto's SubtleCrypto is only available in a secure context (HTTPS or
+ *  localhost). Over a plain LAN IP it's undefined — detect that up front so the
+ *  UI can explain it instead of failing with a cryptic error. */
+export function isCryptoAvailable(): boolean {
+  return (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.subtle !== 'undefined' &&
+    (typeof window === 'undefined' || window.isSecureContext !== false)
+  );
+}
+
 function bufToB64(buf: ArrayBuffer): string {
   let s = '';
   const bytes = new Uint8Array(buf);

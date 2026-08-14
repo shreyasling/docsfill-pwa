@@ -16,6 +16,16 @@ const EMPTY_ADDR: AddressValue = {
   pincode: '',
 };
 
+/** Supabase errors are plain objects, not Error instances — pull out the real
+ *  message so failures aren't hidden behind a generic string. */
+function errText(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e) {
+    return String((e as { message: unknown }).message) || fallback;
+  }
+  return fallback;
+}
+
 function AddressFields({
   value,
   onChange,
@@ -97,7 +107,7 @@ export default function Profile() {
           setAddrPermanent(p.address_permanent ?? EMPTY_ADDR);
         }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load profile.'))
+      .catch((e) => setError(errText(e, 'Failed to load profile.')))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -137,7 +147,7 @@ export default function Profile() {
       if (sameAsCurrent) setAddrPermanent(addrCurrent);
       setSaved(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save profile.');
+      setError(errText(e, 'Failed to save profile.'));
     } finally {
       setSaving(false);
     }
