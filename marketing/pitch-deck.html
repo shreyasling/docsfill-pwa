@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DocFill — Pitch Deck</title>
+<style>
+  :root{
+    --blue:#2563eb; --blue-700:#1d4ed8; --ink:#0f172a; --slate:#475569;
+    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --good:#10b981;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#0b1020}
+  #deck{position:fixed;inset:0;overflow:hidden}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:8vh 10vw;background:var(--bg);opacity:0;transition:opacity .4s ease}
+  .slide.active{display:flex;opacity:1;animation:rise .5s ease}
+  @keyframes rise{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .kicker{font-size:clamp(.8rem,1.4vw,1rem);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+  h1{font-size:clamp(2.2rem,6vw,4.6rem);line-height:1.02;margin:.3em 0;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:clamp(1.7rem,4vw,3rem);line-height:1.05;margin:.2em 0 .4em;font-weight:800;letter-spacing:-.02em}
+  p.lead{font-size:clamp(1.05rem,2.1vw,1.6rem);color:var(--slate);max-width:60ch;line-height:1.5}
+  .grid{display:grid;gap:22px;margin-top:28px}
+  .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 10px 30px rgba(2,8,40,.05)}
+  .card h3{margin:.1em 0 .3em;font-size:clamp(1.05rem,1.8vw,1.4rem)}
+  .card p{margin:0;color:var(--slate);font-size:clamp(.9rem,1.4vw,1.05rem);line-height:1.45}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;
+    background:var(--blue);color:#fff;font-weight:800;font-size:1.2rem;margin-bottom:12px}
+  .emoji{font-size:2rem;line-height:1}
+  .pill{display:inline-block;background:#eff6ff;color:var(--blue-700);border:1px solid #bfdbfe;
+    padding:8px 14px;border-radius:999px;font-weight:600;font-size:.95rem;margin:6px 8px 0 0}
+  .cover{background:radial-gradient(1200px 600px at 20% -10%,#1e3a8a 0%,#0b1020 60%);color:#fff}
+  .cover h1,.cover p.lead{color:#fff}
+  .cover .lead{opacity:.85}
+  .brandrow{display:flex;align-items:center;gap:16px;margin-bottom:10px}
+  .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#3b82f6,#2563eb);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(37,99,235,.5)}
+  .logo svg{width:30px;height:30px}
+  .tag{color:#93c5fd;font-weight:700;letter-spacing:.04em}
+  code,pre{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#0b1020;color:#d7e0ff;padding:26px;border-radius:16px;overflow:auto;font-size:clamp(.8rem,1.3vw,1.05rem);line-height:1.6;border:1px solid #1e293b;box-shadow:0 20px 50px rgba(2,8,40,.4)}
+  pre .c{color:#64748b} pre .k{color:#c084fc} pre .s{color:#86efac} pre .a{color:#fca5a5} pre .f{color:#7dd3fc}
+  .flow{display:flex;align-items:stretch;gap:14px;margin-top:26px;flex-wrap:wrap}
+  .step{flex:1;min-width:180px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;position:relative}
+  .step .n{font-size:.8rem;font-weight:800;color:var(--blue);letter-spacing:.1em}
+  .step h4{margin:.4em 0 .2em;font-size:1.1rem}
+  .step p{margin:0;color:var(--slate);font-size:.95rem}
+  .arrow{align-self:center;color:#94a3b8;font-size:1.6rem}
+  .stat{font-size:clamp(2.4rem,6vw,4.5rem);font-weight:800;color:var(--blue);line-height:1}
+  .foot{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;
+    padding:14px 22px;font-size:.85rem;color:#94a3b8;pointer-events:none}
+  .dots{display:flex;gap:7px;pointer-events:auto}
+  .dot{width:9px;height:9px;border-radius:50%;background:#cbd5e1;cursor:pointer;border:0}
+  .dot.on{background:var(--blue);transform:scale(1.25)}
+  .progress{position:fixed;top:0;left:0;height:4px;background:var(--blue);width:0;transition:width .3s ease;z-index:5}
+  .hint{position:fixed;right:18px;top:14px;color:#64748b;font-size:.8rem;background:#fff;border:1px solid var(--line);padding:6px 10px;border-radius:999px}
+  .cover .hint{background:transparent;border-color:#334155;color:#94a3b8}
+  ul.check{list-style:none;padding:0;margin:18px 0 0}
+  ul.check li{display:flex;gap:12px;align-items:flex-start;margin:12px 0;font-size:clamp(1rem,1.7vw,1.3rem);color:var(--ink)}
+  ul.check li b{font-weight:700}
+  .tick{color:var(--good);flex:0 0 auto;margin-top:2px}
+  .two{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+  @media(max-width:820px){.g3,.g2,.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="progress" id="bar"></div>
+<div class="hint">← → to navigate · F fullscreen</div>
+<div id="deck">
+
+  <!-- 1. Cover -->
+  <section class="slide cover active">
+    <div class="brandrow">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v6h6" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></span>
+      <span class="tag">DocFill</span>
+    </div>
+    <h1>Your documents.<br/>Your Drive.<br/>One scan away.</h1>
+    <p class="lead">A personal document wallet that autofills any web form — text <b>and</b> real files — by scanning a QR. Nothing stored by us. Everything encrypted on your device.</p>
+  </section>
+
+  <!-- 2. Problem -->
+  <section class="slide">
+    <span class="kicker">The problem</span>
+    <h2>Filling forms in India is broken.</h2>
+    <div class="grid g3">
+      <div class="card"><div class="emoji">🧍‍♂️🧍‍♀️</div><h3>Endless queues</h3><p>Hours lost at offices because one photocopy is missing or a field was filled wrong.</p></div>
+      <div class="card"><div class="emoji">🖨️</div><h3>Cyber-centre risk</h3><p>People hand Aadhaar, PAN & marksheets to strangers who save them on shared PCs.</p></div>
+      <div class="card"><div class="emoji">⌨️</div><h3>Re-typing forever</h3><p>The same name, DOB, address and IDs, entered over and over on every form.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. Solution -->
+  <section class="slide">
+    <span class="kicker">The solution</span>
+    <h2>DocFill: scan once, fill instantly.</h2>
+    <p class="lead">Store your documents once in <b>your own Google Drive</b>. When any form asks for them, scan its QR, review exactly what's shared, and approve. The form fills itself.</p>
+    <ul class="check">
+      <li><span class="tick">✔</span><span><b>Your Drive, not our servers</b> — we use Google's <code>drive.file</code> scope; we only ever touch files you pick.</span></li>
+      <li><span class="tick">✔</span><span><b>Real file injection</b> — marksheets & photos drop straight into the form's file inputs.</span></li>
+      <li><span class="tick">✔</span><span><b>You approve every share</b> — see each field & file before anything leaves your phone.</span></li>
+    </ul>
+  </section>
+
+  <!-- 4. How it works -->
+  <section class="slide">
+    <span class="kicker">How it works</span>
+    <h2>Four steps. A few seconds.</h2>
+    <div class="flow">
+      <div class="step"><div class="n">STEP 1</div><h4>Add documents</h4><p>Pull files from your Google Drive into a Wallet-style vault.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 2</div><h4>Scan the form's QR</h4><p>Any DocFill-enabled form shows a secure, one-time code.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 3</div><h4>Review & approve</h4><p>A checklist shows every field and file you're about to share.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">STEP 4</div><h4>It fills itself</h4><p>Text and files land in the form instantly. Done.</p></div>
+    </div>
+  </section>
+
+  <!-- 5. Developer integration -->
+  <section class="slide">
+    <span class="kicker">For developers</span>
+    <h2>Add autofill in 3 lines.</h2>
+    <div class="two">
+      <div>
+<pre><span class="c">&lt;!-- 1. Tag your existing fields --&gt;</span>
+&lt;input <span class="a">data-docfill</span>=<span class="s">"identity.full_name"</span>&gt;
+&lt;input <span class="a">data-docfill</span>=<span class="s">"identity.pan"</span>&gt;
+&lt;input type="file" <span class="a">data-docfill</span>=<span class="s">"education.12th_marksheet"</span>&gt;
+
+<span class="c">&lt;!-- 2. Drop in the SDK &amp; mount --&gt;</span>
+&lt;script src=<span class="s">"docfill-sdk"</span>&gt;&lt;/script&gt;
+&lt;script&gt;
+  <span class="k">const</span> docfill = <span class="k">new</span> <span class="f">DocFill</span>({
+    formId: <span class="s">'college-admission-form'</span>,
+    pwaUrl: <span class="s">'https://docsfill-pwa.vercel.app'</span>,
+  });
+  docfill.<span class="f">mount</span>(<span class="s">'#docfill-qr'</span>);
+&lt;/script&gt;</pre>
+      </div>
+      <div>
+        <ul class="check">
+          <li><span class="tick">✔</span><span>Works on <b>any</b> HTML form — no rebuild.</span></li>
+          <li><span class="tick">✔</span><span>Shared <b>tag vocabulary</b> (identity, education, financial…).</span></li>
+          <li><span class="tick">✔</span><span>You receive clean data: text inline, <b>files as Drive references</b>.</span></li>
+          <li><span class="tick">✔</span><span><b>Zero PII stored</b> on your servers → less liability.</span></li>
+        </ul>
+        <div style="margin-top:18px"><span class="pill">npm i docfill-sdk</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Security -->
+  <section class="slide">
+    <span class="kicker">Trust & security</span>
+    <h2>Built private by design.</h2>
+    <div class="grid g2">
+      <div class="card"><h3>🔐 End-to-end encryption</h3><p>Profile details are encrypted in your browser (AES-GCM) before they ever reach the database. Only your passphrase unlocks them.</p></div>
+      <div class="card"><h3>🗂️ Your Google Drive</h3><p>Documents stay in your own Drive via the least-privilege <code>drive.file</code> scope. We never see your other files.</p></div>
+      <div class="card"><h3>🎟️ Token-gated shares</h3><p>Each form fill uses a one-time capability token. No token, no data — and it expires.</p></div>
+      <div class="card"><h3>🧾 Full activity log</h3><p>Every approval is logged — which site, what you shared, when — with a 7-day TTL.</p></div>
+    </div>
+  </section>
+
+  <!-- 7. Why now / market -->
+  <section class="slide">
+    <span class="kicker">Why it matters</span>
+    <h2>One vault for every form.</h2>
+    <div class="grid g3">
+      <div class="card"><div class="stat">10+</div><p style="margin-top:8px">forms an average student/applicant fills each admission or job season.</p></div>
+      <div class="card"><div class="stat">70+</div><p style="margin-top:8px">standard document & data fields supported out of the box.</p></div>
+      <div class="card"><div class="stat">1</div><p style="margin-top:8px">scan to complete any of them — text and real files together.</p></div>
+    </div>
+    <p class="lead" style="margin-top:26px">College admissions · Job applications · KYC & banking · Government portals · Scholarships.</p>
+  </section>
+
+  <!-- 8. CTA -->
+  <section class="slide cover">
+    <div class="brandrow">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v6h6" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></span>
+      <span class="tag">DocFill</span>
+    </div>
+    <h1>Stop re-typing.<br/>Start scanning.</h1>
+    <p class="lead">Your documents, your Drive, one scan away. Sign in with Google and fill your next form in seconds.</p>
+    <div style="margin-top:22px"><span class="pill" style="background:#1e3a8a;color:#dbeafe;border-color:#3b82f6">docsfill-pwa.vercel.app</span></div>
+  </section>
+
+</div>
+
+<div class="foot">
+  <span>DocFill · Pitch</span>
+  <span class="dots" id="dots"></span>
+  <span id="count">1 / 8</span>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const bar=document.getElementById('bar');
+  const count=document.getElementById('count');
+  let i=0;
+  slides.forEach((_,n)=>{const b=document.createElement('button');b.className='dot';b.onclick=()=>go(n);dotsWrap.appendChild(b);});
+  const dots=[...document.querySelectorAll('.dot')];
+  function go(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    count.textContent=(i+1)+' / '+slides.length;
+  }
+  function next(){go(i+1)} function prev(){go(i-1)}
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();next();}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();prev();}
+    else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
+    else if(e.key==='Home'){go(0);} else if(e.key==='End'){go(slides.length-1);}
+  });
+  document.getElementById('deck').addEventListener('click',e=>{if(e.target.closest('.dot'))return;next();});
+  go(0);
+</script>
+</body>
+</html>

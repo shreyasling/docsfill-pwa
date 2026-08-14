@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DocFill — How developers integrate it</title>
+<style>
+  :root{--blue:#2563eb;--ink:#0f172a;--slate:#475569;--line:#e2e8f0;--good:#10b981;--bg:#eef2f8}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1280px;margin:0 auto;padding:26px 26px 90px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:1.25rem}
+  .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(37,99,235,.45)}
+  .logo svg{width:22px;height:22px}
+  .replay{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 18px;font-weight:700;font-size:.9rem;cursor:pointer;color:var(--blue)}
+  .replay:hover{background:#f1f5f9}
+  .stage{display:grid;grid-template-columns:1.05fr .95fr;gap:22px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 18px 44px rgba(2,8,40,.08);min-height:520px;display:flex;flex-direction:column}
+  .bar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);background:#fafbfd}
+  .bar .dotr{width:11px;height:11px;border-radius:50%}
+  .r{background:#ff5f57}.y{background:#febc2e}.g{background:#28c840}
+  .bar .name{margin-left:8px;font-size:.82rem;color:var(--slate);font-weight:600}
+  /* code panel */
+  pre.code{margin:0;padding:22px;font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:14.5px;line-height:1.7;color:#0b1020;white-space:pre-wrap;word-break:break-word;flex:1;overflow:auto}
+  .code .c{color:#94a3b8} .code .k{color:#7c3aed} .code .s{color:#059669} .code .a{color:#dc2626} .code .f{color:#0284c7}
+  .caret{display:inline-block;width:8px;height:1.05em;background:var(--blue);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  /* browser preview */
+  .browser{flex:1;display:flex;flex-direction:column}
+  .urlbar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);background:#fff}
+  .url{flex:1;background:#f1f5f9;border-radius:999px;padding:7px 14px;font-size:.8rem;color:var(--slate)}
+  .form{padding:22px 24px;flex:1;overflow:auto}
+  .form h3{margin:0 0 4px;font-size:1.15rem}
+  .form .sub{margin:0 0 16px;color:var(--slate);font-size:.85rem}
+  .field{margin:14px 0}
+  .field label{display:block;font-size:.8rem;font-weight:700;color:#334155;margin-bottom:5px}
+  .field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:.95rem;background:#fff;transition:.3s}
+  .field input.filled{border-color:#93c5fd;background:#eff6ff;animation:pop .35s ease}
+  @keyframes pop{0%{transform:scale(.99)}50%{transform:scale(1.01)}100%{transform:scale(1)}}
+  .filechip{display:none;margin-top:8px;align-items:center;gap:8px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:.85rem;font-weight:600}
+  .filechip.show{display:inline-flex;animation:pop .35s ease}
+  .qrbox{display:none;margin:6px 0 18px;padding:18px;border:1px dashed #bfdbfe;border-radius:14px;background:#f8fbff;text-align:center}
+  .qrbox.show{display:block;animation:pop .4s ease}
+  .qrbox canvas{border-radius:8px;background:#fff}
+  .qrbox p{margin:10px 0 0;font-size:.8rem;color:var(--slate)}
+  /* phone overlay */
+  .phone{position:absolute;right:38px;bottom:104px;width:210px;height:420px;background:#0f172a;border-radius:30px;padding:10px;box-shadow:0 30px 70px rgba(2,8,40,.4);opacity:0;transform:translateY(30px) scale(.96);transition:.5s;z-index:6}
+  .phone.show{opacity:1;transform:translateY(0) scale(1)}
+  .screen{background:#fff;border-radius:22px;height:100%;overflow:hidden;display:flex;flex-direction:column}
+  .ph-head{background:var(--blue);color:#fff;padding:14px 14px 12px;font-weight:800;font-size:.95rem}
+  .ph-head span{display:block;font-weight:600;font-size:.7rem;opacity:.85;margin-top:2px}
+  .ph-body{padding:12px;flex:1;overflow:auto}
+  .prow{display:flex;align-items:center;gap:9px;padding:9px 6px;border-bottom:1px solid #f1f5f9;font-size:.78rem;color:#334155;opacity:.35;transition:.3s}
+  .prow.on{opacity:1}
+  .pcheck{width:20px;height:20px;border-radius:50%;background:#e2e8f0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:0 0 auto;transition:.3s}
+  .prow.on .pcheck{background:var(--good)}
+  .ph-btn{margin:10px;padding:11px;border-radius:12px;background:var(--blue);color:#fff;text-align:center;font-weight:800;font-size:.85rem;transition:.3s}
+  .ph-btn.tapped{background:#065f46}
+  .caption{position:fixed;left:0;right:0;bottom:0;background:#0f172a;color:#fff;padding:16px 26px;font-size:1.05rem;font-weight:600;display:flex;align-items:center;gap:14px}
+  .caption .step{background:var(--blue);border-radius:999px;padding:3px 12px;font-size:.8rem;font-weight:800;letter-spacing:.06em}
+  @media(max-width:900px){.stage{grid-template-columns:1fr}.phone{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M13 3v6h6" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></span>
+      DocFill · Developer integration
+    </div>
+    <button class="replay" id="replay">▶ Replay</button>
+  </header>
+
+  <div class="stage">
+    <!-- CODE -->
+    <div class="panel">
+      <div class="bar"><span class="dotr r"></span><span class="dotr y"></span><span class="dotr g"></span><span class="name">admission-form.html</span></div>
+      <pre class="code" id="code"></pre>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="panel">
+      <div class="urlbar"><span class="dotr r"></span><span class="dotr y"></span><span class="dotr g"></span><span class="url">https://your-college.edu/apply</span></div>
+      <div class="browser">
+        <div class="form">
+          <h3>College Admission Form</h3>
+          <p class="sub">Powered by <b>docfill-sdk</b></p>
+
+          <div class="qrbox" id="qrbox">
+            <canvas id="qr" width="132" height="132"></canvas>
+            <p>Scan with the DocFill app to autofill</p>
+          </div>
+
+          <div class="field"><label>Full name</label><input id="f_name" placeholder="" /></div>
+          <div class="field"><label>PAN number</label><input id="f_pan" placeholder="" /></div>
+          <div class="field"><label>Date of birth</label><input id="f_dob" placeholder="" /></div>
+          <div class="field">
+            <label>12th marksheet</label>
+            <input id="f_file" placeholder="No file chosen" readonly />
+            <span class="filechip" id="chip">✓ Uploaded: 12th_marksheet.pdf</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- phone -->
+<div class="phone" id="phone">
+  <div class="screen">
+    <div class="ph-head">Autofill request<span>your-college.edu wants:</span></div>
+    <div class="ph-body">
+      <div class="prow" data-i="0"><span class="pcheck">✓</span> Full name · Shreyas</div>
+      <div class="prow" data-i="1"><span class="pcheck">✓</span> PAN · ABCDE1234F</div>
+      <div class="prow" data-i="2"><span class="pcheck">✓</span> Date of birth · 2003-04-24</div>
+      <div class="prow" data-i="3"><span class="pcheck">✓</span> 12th marksheet · file</div>
+    </div>
+    <div class="ph-btn" id="phbtn">Approve &amp; share</div>
+  </div>
+</div>
+
+<div class="caption"><span class="step" id="stepno">STEP 1</span><span id="cap">A plain HTML form you already have.</span></div>
+
+<script>
+  // ---- syntax highlighter (re-applied each keystroke) ----
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function hi(t){
+    let h = esc(t);
+    h = h.replace(/(&lt;!--[\s\S]*?--&gt;)/g,'<span class="c">$1</span>');
+    h = h.replace(/(data-docfill)/g,'<span class="a">$1</span>');
+    h = h.replace(/(&quot;[^&]*?&quot;|'[^']*?')/g,'<span class="s">$1</span>');
+    h = h.replace(/\b(const|new|script)\b/g,'<span class="k">$1</span>');
+    h = h.replace(/\b(DocFill|mount)\b/g,'<span class="f">$1</span>');
+    return h;
+  }
+  const codeEl = document.getElementById('code');
+  const CODE =
+`<!-- 1. Tag each field with what it is -->
+<input data-docfill="identity.full_name">
+<input data-docfill="identity.pan">
+<input data-docfill="identity.dob">
+<input type="file"
+  data-docfill="education.12th_marksheet">
+
+<!-- 2. Drop in the SDK and mount it -->
+<script src="docfill-sdk"><\/script>
+<script>
+  const docfill = new DocFill({
+    formId: 'college-admission-form',
+    pwaUrl: 'https://docsfill-pwa.vercel.app',
+  });
+  docfill.mount('#docfill-qr');
+<\/script>`;
+
+  const cap = document.getElementById('cap');
+  const stepno = document.getElementById('stepno');
+  const qrbox = document.getElementById('qrbox');
+  const phone = document.getElementById('phone');
+  const phbtn = document.getElementById('phbtn');
+  const chip = document.getElementById('chip');
+  const fields = { name:document.getElementById('f_name'), pan:document.getElementById('f_pan'), dob:document.getElementById('f_dob'), file:document.getElementById('f_file') };
+  const prows = [...document.querySelectorAll('.prow')];
+  let timers=[];
+  const wait = ms => new Promise(r=>timers.push(setTimeout(r,ms)));
+  function clearAll(){ timers.forEach(clearTimeout); timers=[]; }
+
+  function setCap(step,text){ stepno.textContent='STEP '+step; cap.textContent=text; }
+
+  function drawQR(){
+    const c=document.getElementById('qr'), x=c.getContext('2d'), n=11, s=12;
+    x.clearRect(0,0,c.width,c.height); x.fillStyle='#0f172a';
+    // pseudo-random modules
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++){ if(((i*7+j*13+i*j)%3===0)) x.fillRect(4+i*s,4+j*s,s,s); }
+    // finder squares
+    const F=(px,py)=>{x.fillStyle='#0f172a';x.fillRect(px,py,s*3,s*3);x.fillStyle='#fff';x.fillRect(px+3,py+3,s*3-6,s*3-6);x.fillStyle='#2563eb';x.fillRect(px+7,py+7,s*3-14,s*3-14);};
+    F(4,4); F(4+s*8,4); F(4,4+s*8);
+  }
+
+  async function typeCode(){
+    codeEl.innerHTML='';
+    let cur='';
+    for(let i=0;i<CODE.length;i++){
+      cur+=CODE[i];
+      codeEl.innerHTML = hi(cur) + '<span class="caret"></span>';
+      codeEl.scrollTop = codeEl.scrollHeight;
+      // switch captions at meaningful points
+      if(CODE.slice(0,i).endsWith('what it is -->')) setCap('1','Tag each field with a shared vocabulary — that\u2019s it.');
+      if(CODE.slice(0,i).endsWith('mount it -->')) setCap('2','Drop in the SDK and mount — three lines.');
+      const ch=CODE[i];
+      await wait(ch==='\n'? 60 : (ch===' '?12: 20));
+    }
+    codeEl.innerHTML = hi(cur);
+  }
+
+  async function run(){
+    clearAll();
+    // reset
+    qrbox.classList.remove('show'); phone.classList.remove('show'); chip.classList.remove('show');
+    phbtn.classList.remove('tapped'); phbtn.textContent='Approve & share';
+    prows.forEach(p=>p.classList.remove('on'));
+    Object.values(fields).forEach(f=>{f.value='';f.classList.remove('filled');});
+    fields.file.value=''; fields.file.placeholder='No file chosen';
+    setCap('1','A plain HTML form you already have.');
+
+    await wait(700);
+    await typeCode();
+
+    // QR appears
+    setCap('3','A secure, one-time QR renders on your page.');
+    drawQR(); qrbox.classList.add('show');
+    await wait(1100);
+
+    // phone scans
+    setCap('4','Your user scans and reviews exactly what\u2019s shared.');
+    phone.classList.add('show');
+    for(const p of prows){ await wait(430); p.classList.add('on'); }
+    await wait(650);
+
+    // approve
+    phbtn.classList.add('tapped'); phbtn.textContent='✓ Shared';
+    setCap('5','One tap to approve…');
+    await wait(700);
+
+    // fill form
+    setCap('6','…and every field fills itself — text and real files.');
+    fields.name.value='Shreyas'; fields.name.classList.add('filled'); await wait(420);
+    fields.pan.value='ABCDE1234F'; fields.pan.classList.add('filled'); await wait(420);
+    fields.dob.value='2003-04-24'; fields.dob.classList.add('filled'); await wait(420);
+    fields.file.value='12th_marksheet.pdf'; fields.file.classList.add('filled'); chip.classList.add('show'); await wait(700);
+
+    setCap('✓','Done. Your submit handler gets clean data — zero PII stored on your servers.');
+  }
+
+  document.getElementById('replay').addEventListener('click',run);
+  run();
+</script>
+</body>
+</html>
