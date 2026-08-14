@@ -1,0 +1,7 @@
+# DocFill PWA — Supabase config.
+# The file-proxy function must accept an ANONYMOUS GET (the SDK has no JWT); we
+# authenticate the GET with the unguessable grant token and the POST with the
+# user's JWT inside the function itself.
+
+[functions.file-proxy]
+verify_jwt = false
