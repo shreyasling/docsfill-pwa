@@ -9,7 +9,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { clearDriveToken } from './google';
-import { clearVaultKey } from './crypto';
+import { clearUserKey } from './crypto';
 
 interface AuthState {
   session: Session | null;
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(next);
       if (!next) {
         clearDriveToken();
-        clearVaultKey();
+        clearUserKey();
       }
     });
 
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signOut() {
         clearDriveToken();
-        clearVaultKey();
+        clearUserKey();
         await supabase.auth.signOut();
       },
     }),

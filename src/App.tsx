@@ -2,7 +2,6 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Suspense, lazy, type ReactNode } from 'react';
 import { useAuth } from './lib/auth';
 import { Spinner } from './components/ui';
-import VaultGate from './components/VaultGate';
 import Login from './pages/Login';
 import Vault from './pages/Vault';
 import Profile from './pages/Profile';
@@ -28,7 +27,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
     const next = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
-  return <VaultGate>{children}</VaultGate>;
+  return <>{children}</>;
 }
 
 function BottomNav() {

@@ -93,56 +93,26 @@ export async function decryptJSON<T>(key: CryptoKey, blobB64: string): Promise<T
 
 // ---- Session key cache (in-memory + sessionStorage, never localStorage) ----
 
-let memoryKey: CryptoKey | null = null;
-let memoryKeyUser: string | null = null;
+// ---- Automatic per-user key (no passphrase) ----
+//
+// The AES key is derived deterministically from the signed-in user's id plus a
+// per-user random salt, so profile data is stored as ciphertext (never plaintext)
+// yet unlocks automatically on any device the user signs into. This is not
+// end-to-end secret from the server, but it keeps PII out of the table in the clear.
 
-const storageKey = (userId: string) => `docfill.vk.${userId}`;
+const APP_PEPPER = 'docfill.enc.v1';
 
-export function getVaultKey(): CryptoKey | null {
-  return memoryKey;
+let cachedUserKey: { userId: string; salt: string; key: CryptoKey } | null = null;
+
+export async function getUserKey(userId: string, saltB64: string): Promise<CryptoKey> {
+  if (cachedUserKey && cachedUserKey.userId === userId && cachedUserKey.salt === saltB64) {
+    return cachedUserKey.key;
+  }
+  const key = await deriveKey(`${userId}:${APP_PEPPER}`, saltB64);
+  cachedUserKey = { userId, salt: saltB64, key };
+  return key;
 }
 
-export async function cacheVaultKey(userId: string, key: CryptoKey): Promise<void> {
-  memoryKey = key;
-  memoryKeyUser = userId;
-  const raw = await crypto.subtle.exportKey('raw', key);
-  try {
-    sessionStorage.setItem(storageKey(userId), bufToB64(raw));
-  } catch {
-    /* private mode / storage full — key stays in memory only */
-  }
-}
-
-/** Restores a cached key for this session (e.g. after a page reload). */
-export async function restoreVaultKey(userId: string): Promise<CryptoKey | null> {
-  if (memoryKey && memoryKeyUser === userId) return memoryKey;
-  const raw = sessionStorage.getItem(storageKey(userId));
-  if (!raw) return null;
-  try {
-    const key = await crypto.subtle.importKey('raw', b64ToBytes(raw), 'AES-GCM', true, [
-      'encrypt',
-      'decrypt',
-    ]);
-    memoryKey = key;
-    memoryKeyUser = userId;
-    return key;
-  } catch {
-    return null;
-  }
-}
-
-export function clearVaultKey(userId?: string): void {
-  memoryKey = null;
-  memoryKeyUser = null;
-  try {
-    if (userId) sessionStorage.removeItem(storageKey(userId));
-    else {
-      for (let i = sessionStorage.length - 1; i >= 0; i--) {
-        const k = sessionStorage.key(i);
-        if (k?.startsWith('docfill.vk.')) sessionStorage.removeItem(k);
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+export function clearUserKey(): void {
+  cachedUserKey = null;
 }

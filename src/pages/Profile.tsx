@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { getProfile, upsertProfile } from '../lib/db';
 import { pickDriveFolder } from '../lib/drivePicker';
@@ -51,6 +52,9 @@ function AddressFields({
 
 export default function Profile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get('next');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -145,7 +149,13 @@ export default function Profile() {
         address_permanent: permanent,
       });
       if (sameAsCurrent) setAddrPermanent(addrCurrent);
+      // Came here from a fill request to add a missing field → go straight back.
+      if (next) {
+        navigate(decodeURIComponent(next));
+        return;
+      }
       setSaved(true);
+      window.setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       setError(errText(e, 'Failed to save profile.'));
     } finally {
@@ -166,10 +176,19 @@ export default function Profile() {
       <PageHeader
         title="Profile"
         subtitle="Encrypted on your device before saving. Age is computed automatically — never stored."
+        action={
+          <button type="submit" className="btn-primary px-4 py-2 text-sm" disabled={saving}>
+            {saving ? <Spinner className="h-4 w-4" /> : 'Save'}
+          </button>
+        }
       />
 
+      {next && (
+        <Banner tone="info">
+          Adding details for a form. Save and you’ll go straight back to approve.
+        </Banner>
+      )}
       {error && <Banner tone="error">{error}</Banner>}
-      {saved && <Banner tone="success">Profile saved.</Banner>}
 
       <div className="card space-y-3">
         <div>
@@ -310,12 +329,21 @@ export default function Profile() {
       </div>
 
       <button type="submit" className="btn-primary w-full" disabled={saving}>
-        {saving ? <Spinner className="h-5 w-5" /> : 'Save profile'}
+        {saving ? <Spinner className="h-5 w-5" /> : next ? 'Save & return' : 'Save profile'}
       </button>
 
       <DriveFolderSetting />
 
       <SignOutButton />
+
+      {saved && (
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Saved
+        </div>
+      )}
     </form>
   );
 }

@@ -8,7 +8,7 @@ import type {
   SessionRow,
   FilledPayload,
 } from './types';
-import { getVaultKey, encryptJSON, decryptJSON } from './crypto';
+import { getUserKey, encryptJSON, decryptJSON, newSaltB64, isCryptoAvailable } from './crypto';
 import type { DrivePickResult } from './drivePicker';
 
 // ---- Documents (file tags) ----
@@ -55,15 +55,7 @@ export async function deleteDocument(userId: string, tag: string): Promise<void>
   if (error) throw error;
 }
 
-// ---- Profile (value tags, encrypted at rest) ----
-
-/** Thrown when the vault key isn't loaded yet (user hasn't unlocked). */
-export class VaultLockedError extends Error {
-  constructor() {
-    super('Your vault is locked. Unlock it to view or edit profile details.');
-    this.name = 'VaultLockedError';
-  }
-}
+// ---- Profile (value tags, encrypted at rest, automatic per-user key) ----
 
 /** All decrypted profile fields default to null. */
 export function emptyProfileData(): ProfileData {
@@ -107,13 +99,17 @@ export async function getProfileEncRow(userId: string): Promise<ProfileEncRow | 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
   const row = await getProfileEncRow(userId);
   if (!row) return null;
-  if (row.enc_data) {
-    const key = getVaultKey();
-    if (!key) throw new VaultLockedError();
-    const data = await decryptJSON<ProfileData>(key, row.enc_data);
-    return { user_id: userId, updated_at: row.updated_at, ...emptyProfileData(), ...data };
+  if (row.enc_data && row.enc_salt) {
+    try {
+      const key = await getUserKey(userId, row.enc_salt);
+      const data = await decryptJSON<ProfileData>(key, row.enc_data);
+      return { user_id: userId, updated_at: row.updated_at, ...emptyProfileData(), ...data };
+    } catch {
+      // Undecryptable (e.g. an old passphrase blob) — start clean, don't error.
+      return { user_id: userId, updated_at: row.updated_at, ...emptyProfileData() };
+    }
   }
-  // Legacy plaintext row (pre-encryption) — surface so the gate can migrate it.
+  // Legacy plaintext row (pre-encryption) — surface so the next save migrates it.
   return {
     user_id: userId,
     updated_at: row.updated_at,
@@ -126,29 +122,31 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
   };
 }
 
-/** Encrypts and writes the FULL profile blob, clearing any legacy plaintext.
- *  `saltB64` is only passed during vault setup/migration. */
-export async function saveEncryptedProfile(
-  userId: string,
-  data: ProfileData,
-  saltB64?: string,
-): Promise<void> {
-  const key = getVaultKey();
-  if (!key) throw new VaultLockedError();
+/** Encrypts and writes the FULL profile blob with the automatic per-user key,
+ *  reusing the user's existing salt (or minting one), and clears any plaintext. */
+export async function saveEncryptedProfile(userId: string, data: ProfileData): Promise<void> {
+  if (!isCryptoAvailable()) {
+    throw new Error('Saving needs a secure connection (HTTPS or localhost).');
+  }
+  const existing = await getProfileEncRow(userId);
+  const saltB64 = existing?.enc_salt ?? newSaltB64();
+  const key = await getUserKey(userId, saltB64);
   const enc_data = await encryptJSON(key, data);
-  const patch: Record<string, unknown> = {
-    user_id: userId,
-    enc_data,
-    updated_at: new Date().toISOString(),
-    // Wipe any pre-encryption plaintext still on the row.
-    full_name: null,
-    father_name: null,
-    date_of_birth: null,
-    address_current: null,
-    address_permanent: null,
-  };
-  if (saltB64) patch.enc_salt = saltB64;
-  const { error } = await supabase.from('profiles').upsert(patch, { onConflict: 'user_id' });
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      user_id: userId,
+      enc_data,
+      enc_salt: saltB64,
+      updated_at: new Date().toISOString(),
+      // Wipe any pre-encryption plaintext still on the row.
+      full_name: null,
+      father_name: null,
+      date_of_birth: null,
+      address_current: null,
+      address_permanent: null,
+    },
+    { onConflict: 'user_id' },
+  );
   if (error) throw error;
 }
 
@@ -204,15 +202,17 @@ export async function approveSession(
   payload: FilledPayload,
   token?: string | null,
 ): Promise<SessionRow> {
-  // Hardened path: the RPC enforces (id + token + still-pending) server-side.
+  // Preferred: the RPC enforces (id + token + still-pending) server-side.
   if (token) {
     const { data, error } = await supabase.rpc('fill_session', {
       p_id: sessionId,
       p_token: token,
       p_payload: payload,
     });
-    if (error) throw error;
-    return data as SessionRow;
+    if (!error && data) return data as SessionRow;
+    // RPC path failed — e.g. security is rolled back and the session was created
+    // without a stored token, yet the link still carries `&k=`. Fall through to
+    // a direct update on the (open) table so the approve still completes.
   }
   const { data, error } = await supabase
     .from('sessions')

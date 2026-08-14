@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { FILE_TAGS, TAGS, fileTagsByGroup } from '../lib/tags';
 import { listDocuments, upsertDocument, deleteDocument } from '../lib/db';
@@ -12,6 +12,8 @@ import { GROUP_STYLE, CategoryIcon, QrMotif } from '../components/pass';
 
 export default function Vault() {
   const { user } = useAuth();
+  const [params] = useSearchParams();
+  const next = params.get('next');
   const [docs, setDocs] = useState<Record<string, DocumentRow>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +67,15 @@ export default function Vault() {
         }
       />
       {error && <Banner tone="error">{error}</Banner>}
+
+      {next && (
+        <Link
+          to={decodeURIComponent(next)}
+          className="flex items-center justify-between rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 ring-1 ring-brand-100"
+        >
+          <span>Add the document, then return to the request →</span>
+        </Link>
+      )}
 
       {fileTagsByGroup().map((group) => {
         const have = group.tags.filter((t) => docs[t]).length;

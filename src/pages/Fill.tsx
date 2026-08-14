@@ -250,10 +250,13 @@ export default function Fill() {
       }
       setDone(true);
     } catch (e) {
+      console.error('approve failed:', e);
       setError(
         e instanceof Error
           ? e.message
-          : 'Could not submit. The session may have expired or already been filled.',
+          : (e && typeof e === 'object' && 'message' in e
+              ? String((e as { message: unknown }).message)
+              : 'Could not submit. The session may have expired or already been filled.'),
       );
     } finally {
       setSubmitting(false);
@@ -315,6 +318,7 @@ export default function Fill() {
               <TagRow
                 key={r.tag}
                 r={r}
+                returnTo={window.location.pathname + window.location.search}
                 inlineValue={inlineValues[r.tag] ?? ''}
                 onInline={(v) => setInlineValues((m) => ({ ...m, [r.tag]: v }))}
               />
@@ -352,15 +356,18 @@ export default function Fill() {
 
 function TagRow({
   r,
+  returnTo,
   inlineValue,
   onInline,
 }: {
   r: ResolvedTag;
+  returnTo: string;
   inlineValue: string;
   onInline: (v: string) => void;
 }) {
   const def = tagDef(r.tag);
   const label = def?.label ?? r.tag;
+  const back = `next=${encodeURIComponent(returnTo)}`;
 
   if (r.kind === 'unknown') {
     return (
@@ -418,11 +425,11 @@ function TagRow({
         {satisfied ? (
           <CheckCircle />
         ) : r.kind === 'file' ? (
-          <Link to="/" className="btn-ghost px-3 py-1.5 text-xs">
+          <Link to={`/?${back}`} className="btn-ghost px-3 py-1.5 text-xs">
             Add
           </Link>
         ) : !needsInput && addAt ? (
-          <Link to={addAt} className="btn-ghost px-3 py-1.5 text-xs">
+          <Link to={`${addAt}?${back}`} className="btn-ghost px-3 py-1.5 text-xs">
             Add
           </Link>
         ) : (
