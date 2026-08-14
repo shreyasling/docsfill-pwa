@@ -18,13 +18,14 @@ export async function prepareFileUrl(
 ): Promise<string | null> {
   if (!FUNCTION_URL) return null;
   try {
-    // Mint a BRAND-NEW token (silent; falls back to interactive) so the proxy
-    // gets a full-lifetime token from the same GIS client that opened the file.
+    // Reuse the batch's cached Drive token (pre-minted by the caller). Silent
+    // first, interactive only as a last resort. Coalesced in google.ts so
+    // parallel file tags never trigger more than one popup.
     let tokenInfo;
     try {
-      tokenInfo = await getDriveTokenWithExpiry(false, true);
+      tokenInfo = await getDriveTokenWithExpiry(false);
     } catch {
-      tokenInfo = await getDriveTokenWithExpiry(true, true);
+      tokenInfo = await getDriveTokenWithExpiry(true);
     }
     const { token: driveAccessToken, expiresAt: driveTokenExpiresAt } = tokenInfo;
 

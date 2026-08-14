@@ -18,6 +18,7 @@ import type {
 } from '../lib/types';
 import { TAGS, computeAge, isKnownTag, tagDef } from '../lib/tags';
 import { prepareFileUrl } from '../lib/fileProxy';
+import { getDriveTokenWithExpiry } from '../lib/google';
 import { AlertIcon, Banner, Spinner } from '../components/ui';
 import { TagIcon, CheckCircle, tagTile } from '../components/pass';
 
@@ -155,6 +156,16 @@ export default function Fill() {
     resolved.length > 0 &&
     resolved.every((r) => r.kind !== 'unknown' && 'satisfied' in r && r.satisfied);
 
+  // Warm a Drive token SILENTLY the moment we know files will be sent, so the
+  // Approve tap reuses the cached token and never pops the account chooser.
+  const hasFileTags = resolved.some((r) => r.kind === 'file' && Boolean(r.doc));
+  useEffect(() => {
+    if (!hasFileTags) return;
+    void getDriveTokenWithExpiry(false).catch(() => {
+      /* silent warm-up only; approve will fall back to interactive if needed */
+    });
+  }, [hasFileTags]);
+
   const now = Date.now();
   const isExpired =
     session != null &&
@@ -172,6 +183,19 @@ export default function Fill() {
       const fileEntries = resolved.filter(
         (r): r is Extract<ResolvedTag, { kind: 'file' }> => r.kind === 'file' && Boolean(r.doc),
       );
+      // Pre-mint ONE fresh Drive token for the whole batch so every file reuses
+      // it (one account popup at most, full-lifetime token, faster).
+      if (fileEntries.length > 0) {
+        try {
+          await getDriveTokenWithExpiry(false);
+        } catch {
+          try {
+            await getDriveTokenWithExpiry(true);
+          } catch {
+            /* proxy calls will just fall back to Drive references */
+          }
+        }
+      }
       const fileUrls = await Promise.all(
         fileEntries.map((r) => prepareFileUrl(session.id, r.tag, r.doc!)),
       );

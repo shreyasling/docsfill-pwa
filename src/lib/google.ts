@@ -65,6 +65,10 @@ export const gapiReady = () => waitFor(() => Boolean(window.gapi));
 
 let tokenClient: TokenClient | null = null;
 let cachedToken: { value: string; expiresAt: number } | null = null;
+// Coalesces concurrent token requests so parallel callers (e.g. filling several
+// file tags at once) share ONE GIS flow instead of racing on tokenClient.callback
+// and triggering multiple account-chooser popups.
+let inflight: Promise<{ token: string; expiresAt: number }> | null = null;
 
 /** Drops the cached Drive token (e.g. on sign-out). */
 export function clearDriveToken(): void {
@@ -94,18 +98,30 @@ export async function getDriveTokenWithExpiry(
     return { token: cachedToken.value, expiresAt: cachedToken.expiresAt };
   }
 
+  // If a request is already in flight, reuse it — never open a second popup.
+  if (inflight) return inflight;
+
   if (!CLIENT_ID) {
     throw new Error(
       'Missing VITE_GOOGLE_CLIENT_ID. Add it to .env to enable Google Drive access.',
     );
   }
 
+  inflight = requestFreshToken(interactive).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function requestFreshToken(
+  interactive: boolean,
+): Promise<{ token: string; expiresAt: number }> {
   await gisReady();
 
   return new Promise<{ token: string; expiresAt: number }>((resolve, reject) => {
     if (!tokenClient) {
       tokenClient = window.google!.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
+        client_id: CLIENT_ID!,
         scope: DRIVE_FILE_SCOPE,
         callback: () => {
           /* replaced per-request below */
