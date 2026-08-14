@@ -32,18 +32,27 @@ export async function prepareFileUrl(
     const jwt = data.session?.access_token;
     if (!jwt) return null;
 
-    const res = await fetch(FUNCTION_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId,
-        tag,
-        driveFileId: doc.drive_file_id,
-        fileName: doc.drive_file_name,
-        driveAccessToken,
-        driveTokenExpiresAt,
-      }),
-    });
+    // Bound the proxy call too — a hung fetch shouldn't freeze the approve flow.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let res: Response;
+    try {
+      res = await fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          tag,
+          driveFileId: doc.drive_file_id,
+          fileName: doc.drive_file_name,
+          driveAccessToken,
+          driveTokenExpiresAt,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) return null;
 
     const body = (await res.json()) as { fileUrl?: string };

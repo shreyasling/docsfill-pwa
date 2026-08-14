@@ -113,7 +113,14 @@ export async function getDriveTokenWithExpiry(
       });
     }
 
+    // GIS never calls back if the consent popup is silently blocked (common in
+    // mobile/embedded browsers) — without this the caller would hang forever.
+    const timer = window.setTimeout(() => {
+      reject(new Error('Timed out waiting for Google Drive access — the sign-in popup may be blocked.'));
+    }, 15000);
+
     tokenClient.callback = (resp) => {
+      window.clearTimeout(timer);
       if (resp.error || !resp.access_token) {
         reject(new Error(resp.error || 'Failed to obtain Drive access token.'));
         return;
