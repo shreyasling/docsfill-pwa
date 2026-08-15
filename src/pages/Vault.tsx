@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { FILE_TAGS, TAGS, fileTagsByGroup } from '../lib/tags';
+import { TAGS, fileTagsByGroup, type GroupKey } from '../lib/tags';
 import { listDocuments, upsertDocument, deleteDocument } from '../lib/db';
 import { openDrivePicker, uploadFileToDrive } from '../lib/drivePicker';
 import { getDriveAccessToken } from '../lib/google';
 import { getDestFolder } from '../lib/prefs';
 import type { DocumentRow } from '../lib/types';
-import { Banner, PageHeader, PlusIcon, Spinner } from '../components/ui';
-import { GROUP_STYLE, CategoryIcon, QrMotif } from '../components/pass';
+import { Banner, PlusIcon, Spinner } from '../components/ui';
+import { GROUP_STYLE, CategoryIcon } from '../components/pass';
+
+function previewLabel(group: GroupKey) {
+  const labels: Partial<Record<GroupKey, string>> = {
+    financial: 'Financial Documents',
+    education: 'Education Certificates',
+    employment: 'Employment Documents',
+  };
+  return labels[group] ?? group;
+}
 
 export default function Vault() {
   const { user } = useAuth();
@@ -17,6 +26,10 @@ export default function Vault() {
   const [docs, setDocs] = useState<Record<string, DocumentRow>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<GroupKey>('identity');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [showAllDocuments, setShowAllDocuments] = useState(false);
   const folderId = getDestFolder()?.id ?? null;
 
   async function refresh() {
@@ -38,7 +51,26 @@ export default function Vault() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const uploadedCount = Object.keys(docs).length;
+  const groups = fileTagsByGroup();
+  const filteredGroups = groups
+    .map((group) => ({
+      ...group,
+      tags: group.tags.filter((tag) => !query.trim() || TAGS[tag].label.toLowerCase().includes(query.trim().toLowerCase())),
+    }))
+    .filter((group) => group.tags.length > 0);
+  const activeGroup = filteredGroups.find((group) => group.key === selectedGroup) ?? filteredGroups[0];
+  const previewGroups = (['financial', 'education', 'employment'] as GroupKey[])
+    .map((key) => groups.find((group) => group.key === key))
+    .filter((group): group is (typeof groups)[number] => Boolean(group && group.key !== activeGroup?.key));
+  const uploadedTags = activeGroup?.tags.filter((tag) => docs[tag]) ?? [];
+  const visibleTags = showAllDocuments
+    ? activeGroup?.tags ?? []
+    : (uploadedTags.length > 0 ? uploadedTags : activeGroup?.tags ?? []).slice(0, 2);
+
+  function selectGroup(group: GroupKey) {
+    setSelectedGroup(group);
+    setShowAllDocuments(false);
+  }
 
   if (loading) {
     return (
@@ -49,23 +81,21 @@ export default function Vault() {
   }
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Document vault"
-        subtitle={`${uploadedCount} of ${FILE_TAGS.length} documents added — stored in your own Google Drive.`}
-        action={
-          <Link
-            to="/activity"
-            aria-label="Sharing activity"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-100"
-          >
-            <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-              <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+    <div className="vault-screen space-y-5">
+      <header className="flex items-start justify-between gap-3 px-1">
+        <div>
+          <h1 className="text-[27px] font-bold tracking-[-0.03em] text-slate-900">Document vault</h1>
+          <p className="mt-1 text-[15px] text-slate-500">Stored securely in your Google Drive</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" aria-label="Search documents" onClick={() => setSearchOpen((open) => !open)} className="icon-button">
+            <svg viewBox="0 0 24 24" fill="none" width="21" height="21"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="m16.5 16.5 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+          <Link to="/activity" aria-label="Sharing activity" className="icon-button">
+            <svg viewBox="0 0 24 24" fill="none" width="21" height="21"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><circle cx="8" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="16" cy="12" r="1" fill="currentColor"/></svg>
           </Link>
-        }
-      />
+        </div>
+      </header>
       {error && <Banner tone="error">{error}</Banner>}
 
       {next && (
@@ -77,33 +107,49 @@ export default function Vault() {
         </Link>
       )}
 
-      {fileTagsByGroup().map((group) => {
+      {searchOpen && (
+        <input autoFocus className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your documents" aria-label="Search your documents" />
+      )}
+
+      <div className="vault-tabs" role="tablist" aria-label="Document categories">
+        <button type="button" role="tab" aria-selected={selectedGroup === 'identity'} className={`vault-tab ${selectedGroup === 'identity' ? 'vault-tab-active' : ''}`} onClick={() => selectGroup('identity')}>
+          <span className="grid grid-cols-2 gap-0.5"><i /><i /><i /><i /></span>All
+        </button>
+        {groups.slice(0, 4).map((group) => (
+          <button type="button" role="tab" key={group.key} aria-selected={selectedGroup === group.key && selectedGroup !== 'identity'} onClick={() => selectGroup(group.key)} className={`vault-tab ${selectedGroup === group.key && selectedGroup !== 'identity' ? 'vault-tab-selected' : ''}`}>
+            <CategoryIcon group={group.key} />{group.label.split(' ')[0]}
+          </button>
+        ))}
+      </div>
+
+      <div className="vault-category-stack">
+      {previewGroups.map((group) => {
         const have = group.tags.filter((t) => docs[t]).length;
         return (
-          <section key={group.key} className="space-y-2.5">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
-                {group.label}
-              </h2>
-              <span className="text-xs font-medium text-slate-400">
-                {have}/{group.tags.length}
-              </span>
-            </div>
-            <div className="space-y-2.5">
-              {group.tags.map((tag) => (
-                <VaultRow
-                  key={tag}
-                  tag={tag}
-                  doc={docs[tag]}
-                  folderId={folderId}
-                  onChanged={refresh}
-                  onError={setError}
-                />
-              ))}
-            </div>
-          </section>
+          <button type="button" key={group.key} onClick={() => selectGroup(group.key)} className="vault-category-preview">
+            <span className="vault-preview-icon"><CategoryIcon group={group.key} /></span><span>{previewLabel(group.key)}</span><em>{have}</em>
+          </button>
         );
       })}
+      </div>
+
+      {activeGroup && (
+        <section className="vault-pass">
+          <div className="vault-pass-heading">
+            <div className="flex items-center gap-3"><span className="vault-pass-icon"><CategoryIcon group={activeGroup.key} /></span><h2>{activeGroup.label}</h2></div>
+            <span>{activeGroup.tags.filter((t) => docs[t]).length} / {activeGroup.tags.length}</span>
+          </div>
+          <div className="vault-pass-items">
+            {visibleTags.map((tag) => <VaultRow key={tag} tag={tag} doc={docs[tag]} folderId={folderId} onChanged={refresh} onError={setError} />)}
+            {!showAllDocuments && activeGroup.tags.length > visibleTags.length && (
+              <button type="button" className="vault-add-more" onClick={() => setShowAllDocuments(true)}><span>＋</span><div><strong>Add more documents</strong><small>Upload or scan a new document</small></div></button>
+            )}
+          </div>
+        </section>
+      )}
+
+      <div className="security-line"><span className="security-line-icon">♢</span><span>Your data is encrypted on your device</span><span className="ml-auto text-xl">›</span></div>
+      <div className="security-card"><span className="security-card-icon">♢</span><div><strong>Only you can access your documents.</strong><p>We never store your data on our servers.</p></div><span className="ml-auto text-xl">›</span></div>
     </div>
   );
 }
@@ -197,7 +243,7 @@ function VaultRow({
   const style = GROUP_STYLE[def.group ?? 'identity'];
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+    <div className="vault-document-row">
       <div className={`h-1.5 w-full ${uploaded ? style.strip : 'bg-slate-200'}`} />
       <div className="flex items-center gap-3 p-4">
         <span
@@ -239,7 +285,7 @@ function VaultRow({
             <Spinner className="h-5 w-5 text-brand-600" />
           )
         ) : uploaded ? (
-          <QrMotif />
+          <span className="vault-check" aria-label="Added">✓</span>
         ) : (
           <button className="btn-primary px-3 py-1.5 text-xs" onClick={openAddMenu}>
             <PlusIcon className="h-4 w-4" /> Add

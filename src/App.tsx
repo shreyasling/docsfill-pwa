@@ -36,18 +36,18 @@ function BottomNav() {
   const active = 'text-brand-600';
   const idle = 'text-slate-400';
   return (
-    <nav className="safe-bottom sticky bottom-0 z-10 flex border-t border-slate-200 bg-white/90 backdrop-blur">
+    <nav className="bottom-nav safe-bottom sticky bottom-0 z-10 flex border-t border-slate-200 bg-white/90 backdrop-blur">
       <NavLink to="/" end className={({ isActive }) => `${base} ${isActive ? active : idle}`}>
         <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
           <path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" stroke="currentColor" strokeWidth="2" />
         </svg>
         Wallet
       </NavLink>
-      <NavLink to="/scan" className={`${base} -mt-6`}>
+      <NavLink to="/scan" className={`${base} -mt-7`}>
         {({ isActive }) => (
           <>
             <span
-              className={`flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg ring-4 ring-slate-100 ${
+              className={`bottom-scan flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-4 ring-slate-100 ${
                 isActive ? 'bg-brand-700' : 'bg-brand-600'
               }`}
             >
