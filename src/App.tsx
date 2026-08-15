@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Suspense, lazy, type ReactNode } from 'react';
 import { useAuth } from './lib/auth';
+import { useThemePreference } from './lib/theme';
 import { Spinner } from './components/ui';
 import Login from './pages/Login';
 import Vault from './pages/Vault';
@@ -81,6 +82,7 @@ function AppShell({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  useThemePreference();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

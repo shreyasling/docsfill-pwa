@@ -6,6 +6,13 @@ three repos in the DocFill project (the others are the `docfill-sdk` npm package
 `docfill-demo-form` demo site). All three talk only through a shared Supabase backend and a
 shared tag vocabulary.
 
+## Demo video
+
+[Watch or download the DocFill PWA demo recording](demo/docfill-pwa-demo.mov).
+
+The recording walks through the mobile-first vault experience, profile, secure document
+management, theme options, QR scanning, and sharing history.
+
 ## Trust model (the whole point)
 
 - We request **only** the `drive.file` OAuth scope — a per-file, non-sensitive scope. The app
@@ -75,6 +82,27 @@ npm run dev         # http://localhost:5173
 npm run build       # typecheck + production build
 npm run preview     # serve the built app (test install + service worker)
 ```
+
+## How to use DocFill
+
+1. Start the PWA with `npm run dev`, then sign in with Google.
+2. Open **Profile** and enter the personal details you commonly reuse. The app encrypts this
+   profile data on-device before it is saved.
+3. Open **Wallet** and add documents from Google Drive, upload a file, or take a camera photo.
+   The file remains in your own Drive; DocFill stores only its reference.
+4. Visit a DocFill-enabled website that renders a one-time QR request via `docfill-sdk`.
+5. In the PWA, tap **Scan**, scan the QR code (or paste the DocFill link), and review every
+   requested value and document.
+6. Tap **Approve & Send** only if the requested data is correct. The website’s tagged fields
+   are filled, and the approval appears in **Sharing history** for seven days.
+
+### Demo checklist
+
+- Use the **light / dark / auto** controls on Profile to preview the themes.
+- The Wallet setup checklist guides first-time users through profile completion, document
+  upload, and their first scan.
+- Use **Replace** on an existing document card to update a document without changing its tag.
+- Sharing history supports time filters and a detail sheet showing exactly what was approved.
 
 ## The four screens
 

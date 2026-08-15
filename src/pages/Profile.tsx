@@ -7,6 +7,7 @@ import type { DriveFolder } from '../lib/drivePicker';
 import { getDestFolder, setDestFolder } from '../lib/prefs';
 import type { AddressValue, ProfileRow } from '../lib/types';
 import { computeAge } from '../lib/tags';
+import { useThemePreference, type ThemePreference } from '../lib/theme';
 import { Banner, PageHeader, Spinner } from '../components/ui';
 
 const EMPTY_ADDR: AddressValue = {
@@ -50,6 +51,69 @@ function AddressFields({
   );
 }
 
+function displayDate(value: string) {
+  if (!value) return '—';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+function ProfileSymbol({ type = 'person' }: { type?: 'person' | 'calendar' | 'shield' | 'heart' | 'drop' | 'flower' | 'flag' }) {
+  if (type === 'calendar') return <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M8 3v4m8-4v4M4 10h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+  if (type === 'shield') return <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5c0 4.6-3 7.8-7 10-4-2.2-7-5.4-7-10V6l7-3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>;
+  if (type === 'heart') return <svg viewBox="0 0 24 24" fill="none"><path d="M20 8.5c0 5-8 10-8 10s-8-5-8-10a4 4 0 0 1 7-2.6A4 4 0 0 1 20 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>;
+  if (type === 'drop') return <svg viewBox="0 0 24 24" fill="none"><path d="M12 3s6 6.7 6 11a6 6 0 1 1-12 0c0-4.3 6-11 6-11Z" stroke="currentColor" strokeWidth="2"/></svg>;
+  if (type === 'flower') return <svg viewBox="0 0 24 24" fill="none"><path d="M12 9c-5-6-9 1-4 3-5 2-1 9 3 4 1 6 9 3 5-2 6 1 6-7 1-5 2-6-6-7-5 0Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>;
+  if (type === 'flag') return <svg viewBox="0 0 24 24" fill="none"><path d="M6 21V4m0 1h11l-2 4 2 4H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="2"/><path d="M5 20c0-3.7 3-6 7-6s7 2.3 7 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+
+function OverviewRow({ label, value, icon = 'person', optional = false }: { label: string; value: string; icon?: 'person' | 'calendar'; optional?: boolean }) {
+  return <div className="profile-overview-row"><span className="profile-symbol"><ProfileSymbol type={icon} /></span><div><p>{label}</p><strong>{value || '—'}</strong></div>{optional && !value && <small>Optional</small>}</div>;
+}
+
+function DetailTile({ label, value, icon }: { label: string; value: string; icon: 'person' | 'shield' | 'heart' | 'drop' | 'flower' | 'flag' }) {
+  return <div className="profile-detail-tile"><span className="profile-symbol"><ProfileSymbol type={icon} /></span><div><p>{label}</p><strong>{value || '—'}</strong></div></div>;
+}
+
+function ProfileOverview({
+  fullName, fatherName, motherName, spouseName, dob, age, gender, category, maritalStatus, bloodGroup, religion, nationality, onEdit, theme, setTheme,
+}: {
+  fullName: string; fatherName: string; motherName: string; spouseName: string; dob: string; age: number | null; gender: string; category: string; maritalStatus: string; bloodGroup: string; religion: string; nationality: string; onEdit: () => void; theme: ThemePreference; setTheme: (theme: ThemePreference) => void;
+}) {
+  const completed = [fullName, fatherName, motherName, dob, gender, category, maritalStatus, bloodGroup, religion, nationality].filter(Boolean).length;
+  const completion = Math.round((completed / 10) * 100);
+  return (
+    <div className="profile-screen space-y-5">
+      <header className="profile-hero">
+        <div><h1>Profile <span className="profile-title-shield"><ProfileSymbol type="shield" /></span></h1><p><ProfileSymbol type="shield" />Your data is encrypted</p></div>
+        <div className="flex flex-col items-end gap-4"><span className="profile-avatar">{fullName.trim().charAt(0).toUpperCase() || 'U'}</span><button type="button" className="profile-edit" onClick={onEdit}>⌕ <span>Edit</span></button></div>
+      </header>
+      <div className="profile-theme-switch" role="group" aria-label="Colour theme">
+        {(['light', 'dark', 'system'] as ThemePreference[]).map((value) => <button type="button" key={value} onClick={() => setTheme(value)} className={theme === value ? 'active' : ''}>{value === 'system' ? 'Auto' : value[0].toUpperCase() + value.slice(1)}</button>)}
+      </div>
+      <button type="button" onClick={onEdit} className="profile-completion"><div><span>Profile completion</span><strong>{completion}%</strong></div><div className="profile-completion-track"><span style={{ width: `${completion}%` }} /></div><small>{completion === 100 ? 'Your details are ready for forms.' : `${10 - completed} more detail${10 - completed === 1 ? '' : 's'} can make autofill smoother.`}</small></button>
+      <section className="profile-panel">
+        <div className="profile-panel-title"><span className="profile-symbol"><ProfileSymbol /></span><h2>Personal information</h2><span>⌃</span></div>
+        <OverviewRow label="Full name" value={fullName} />
+        <OverviewRow label="Father's name" value={fatherName} />
+        <OverviewRow label="Mother's name" value={motherName} />
+        <OverviewRow label="Spouse's name" value={spouseName} optional />
+        <OverviewRow label="Date of birth" value={displayDate(dob)} icon="calendar" />
+      </section>
+      {age !== null && <div className="profile-age"><span>✧</span>Computed age: {age} years</div>}
+      <section className="profile-panel">
+        <div className="profile-panel-title"><span className="profile-symbol"><ProfileSymbol type="shield" /></span><h2>Personal details</h2><span>⌃</span></div>
+        <div className="profile-detail-grid">
+          <DetailTile label="Gender" value={gender} icon="person" /><DetailTile label="Category" value={category} icon="shield" />
+          <DetailTile label="Marital status" value={maritalStatus} icon="heart" /><DetailTile label="Blood group" value={bloodGroup} icon="drop" />
+          <DetailTile label="Religion" value={religion} icon="flower" /><DetailTile label="Nationality" value={nationality} icon="flag" />
+        </div>
+      </section>
+      <div className="profile-security-note"><span className="profile-symbol"><ProfileSymbol type="shield" /></span><div><strong>We never store your sensitive information.</strong><p>All data is encrypted on your device.</p></div></div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -58,6 +122,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(() => Boolean(next));
   const [error, setError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
@@ -82,6 +147,7 @@ export default function Profile() {
   const [addrCurrent, setAddrCurrent] = useState<AddressValue>(EMPTY_ADDR);
   const [addrPermanent, setAddrPermanent] = useState<AddressValue>(EMPTY_ADDR);
   const [sameAsCurrent, setSameAsCurrent] = useState(false);
+  const { theme, setTheme } = useThemePreference();
 
   useEffect(() => {
     if (!user) return;
@@ -154,6 +220,7 @@ export default function Profile() {
         navigate(decodeURIComponent(next));
         return;
       }
+      setEditing(false);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
     } catch (e) {
@@ -169,6 +236,10 @@ export default function Profile() {
         <Spinner className="h-7 w-7" />
       </div>
     );
+  }
+
+  if (!editing && !next) {
+    return <ProfileOverview fullName={fullName} fatherName={fatherName} motherName={motherName} spouseName={spouseName} dob={dob} age={age} gender={gender} category={category} maritalStatus={maritalStatus} bloodGroup={bloodGroup} religion={religion} nationality={nationality} onEdit={() => setEditing(true)} theme={theme} setTheme={setTheme} />;
   }
 
   return (

@@ -5,7 +5,7 @@ import { TAGS, fileTagsByGroup, type GroupKey } from '../lib/tags';
 import { listDocuments, upsertDocument, deleteDocument } from '../lib/db';
 import { openDrivePicker, uploadFileToDrive } from '../lib/drivePicker';
 import { getDriveAccessToken } from '../lib/google';
-import { getDestFolder } from '../lib/prefs';
+import { getDestFolder, getOnboardingComplete, setOnboardingComplete } from '../lib/prefs';
 import type { DocumentRow } from '../lib/types';
 import { Banner, PlusIcon, Spinner } from '../components/ui';
 import { GROUP_STYLE, CategoryIcon } from '../components/pass';
@@ -19,6 +19,11 @@ function previewLabel(group: GroupKey) {
   return labels[group] ?? group;
 }
 
+function needsReview(doc: DocumentRow) {
+  const updated = new Date(doc.updated_at).getTime();
+  return Number.isFinite(updated) && Date.now() - updated > 180 * 24 * 60 * 60 * 1000;
+}
+
 export default function Vault() {
   const { user } = useAuth();
   const [params] = useSearchParams();
@@ -30,6 +35,7 @@ export default function Vault() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [showAllDocuments, setShowAllDocuments] = useState(false);
+  const [onboardingComplete, setOnboardingDone] = useState(getOnboardingComplete);
   const folderId = getDestFolder()?.id ?? null;
 
   async function refresh() {
@@ -105,6 +111,17 @@ export default function Vault() {
         >
           <span>Add the document, then return to the request →</span>
         </Link>
+      )}
+
+      {!onboardingComplete && (
+        <section className="onboarding-card">
+          <div className="flex items-start justify-between gap-3"><div><p className="onboarding-eyebrow">GET STARTED</p><h2>Ready for your first autofill?</h2><p>Finish these quick steps once, then fill forms in seconds.</p></div><button type="button" aria-label="Dismiss setup checklist" onClick={() => { setOnboardingComplete(true); setOnboardingDone(true); }} className="text-lg text-brand-500">×</button></div>
+          <div className="onboarding-steps">
+            <Link to="/profile" className="onboarding-step"><span>1</span><div><strong>Complete your profile</strong><small>Add the details you reuse most.</small></div><b>›</b></Link>
+            <button type="button" onClick={() => { setShowAllDocuments(true); setSelectedGroup('identity'); }} className="onboarding-step"><span>2</span><div><strong>Add important documents</strong><small>{Object.keys(docs).length ? `${Object.keys(docs).length} document${Object.keys(docs).length === 1 ? '' : 's'} already saved` : 'Start with an ID or marksheet.'}</small></div><b>›</b></button>
+            <Link to="/scan" className="onboarding-step"><span>3</span><div><strong>Scan your first form</strong><small>Review before anything is shared.</small></div><b>›</b></Link>
+          </div>
+        </section>
       )}
 
       {searchOpen && (
@@ -264,6 +281,7 @@ function VaultRow({
                 Added
               </span>
               <span className="truncate text-slate-400">• {doc!.drive_file_name}</span>
+              {needsReview(doc!) && <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">Review</span>}
             </p>
           ) : (
             <p className="mt-0.5 text-xs text-slate-400">Not added yet</p>
@@ -303,6 +321,9 @@ function VaultRow({
           >
             View in Drive
           </a>
+          <button className="flex-1 py-2.5 text-center font-medium text-brand-600 hover:bg-brand-50" onClick={openAddMenu}>
+            Replace
+          </button>
           <button
             className="flex-1 py-2.5 text-center font-medium text-red-500 hover:bg-red-50"
             onClick={handleRemove}
@@ -312,7 +333,7 @@ function VaultRow({
         </div>
       )}
 
-      {menuOpen && !uploaded && (
+      {menuOpen && (
         <div className="grid grid-cols-3 gap-2 border-t border-slate-100 p-3">
           <button className="btn-ghost text-xs" onClick={handlePicker}>
             Drive
