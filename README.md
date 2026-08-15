@@ -8,7 +8,10 @@ shared tag vocabulary.
 
 ## Demo video
 
-[Watch or download the DocFill PWA demo recording](demo/docfill-pwa-demo.mov).
+[Watch the DocFill PWA demo on Google Drive](https://drive.google.com/file/d/1ybcSRR6m_GgwYXWMkNWpegrDeF1lBqWl/view?usp=sharing).
+
+The source recording is also included in this repository at
+[`demo/docfill-pwa-demo.mov`](demo/docfill-pwa-demo.mov) for download.
 
 The recording walks through the mobile-first vault experience, profile, secure document
 management, theme options, QR scanning, and sharing history.
